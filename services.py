@@ -48,14 +48,18 @@ class NewsFetcher:
             logger.critical("Критическая ошибка при настройке базы данных", exc_info=True)
             raise
 
-
     def _fetch_from_rss(self, country_code: str, feed_urls: List[str], start_dt_utc: datetime,
                         end_dt_utc: datetime) -> List[tuple]:
         news_candidates = []
         for url in feed_urls:
             log_ctx = {'source': 'RSS', 'country_code': country_code, 'url': url}
             try:
-                feed = feedparser.parse(url, request_headers={'User-Agent': 'MyNewsBot/1.0'})
+                # Загружаем RSS вручную с таймаутом
+                response = requests.get(url, headers={'User-Agent': 'MyNewsBot/1.0'}, timeout=(3, 5))
+                response.raise_for_status()
+
+                feed = feedparser.parse(response.content)
+
                 if feed.bozo:
                     bozo_reason = feed.get('bozo_exception', 'Неизвестная ошибка парсинга')
                     logger.warning("Ошибка парсинга RSS-ленты: %s", bozo_reason, extra={'context': log_ctx})
@@ -72,6 +76,9 @@ class NewsFetcher:
                             country_code, entry.title.strip(),
                             getattr(entry, 'summary', '').strip(), entry.link.strip(), pub_dt
                         ))
+            except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
+                logger.warning("Пропуск RSS-ленты из-за ошибки запроса: %s", e, extra={'context': log_ctx})
+                continue
             except Exception:
                 logger.error("Не удалось обработать RSS-ленту", extra={'context': log_ctx}, exc_info=True)
                 continue
