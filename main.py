@@ -58,11 +58,10 @@ def main_cycle() -> str:
     for country, rss_links in feed_sources.items():
         log_ctx = {'context': {'country_code': country}}
         try:
-            report_text = news_fetcher.fetch_and_process_news(
+            report_text = "News for " + country +  '\n' + news_fetcher.fetch_and_process_news(
                 country_code=country, rss_links=rss_links,
                 start_dt_utc=start_dt_utc, end_dt_utc=end_dt_utc
             )
-
             if not report_text:
                 logger.info("Нет новых новостей для обработки Nikta.", extra=log_ctx)
                 continue
